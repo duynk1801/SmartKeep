@@ -1,0 +1,52 @@
+You are working on SmartKeep — a React Native Expo app for IoT device management and warranty tracking.
+
+MANDATORY: Before making ANY code changes, you MUST read and strictly follow ALL rules in the file `CONVENTIONS.md` at the project root. This file contains the complete coding standards, architecture rules, naming conventions, and performance guidelines for this project.
+
+Key rules you must ALWAYS follow (see CONVENTIONS.md for full details):
+
+ARCHITECTURE:
+- Clean Architecture: app/ (screens) → components → hooks → services → api → types
+- Components are passive views. NO API calls or direct store access in components.
+- Services are framework-agnostic. NO React imports in services.
+- Hooks orchestrate services + API + store.
+
+FILE SIZE — THE 150/200 LINE RULE:
+- Component ≤ 150 lines → OK as single file.
+- Component 151-200 lines → SHOULD split into folder module.
+- Component > 200 lines → MUST split into: Component.tsx (UI), useComponent.ts (hook), Component.styles.ts (styles), index.tsx (re-export).
+
+HOOK vs UTIL:
+- Hook (src/hooks/): Uses useState, useEffect, React lifecycle. Named useXxx.
+- Util (src/utils/): Pure function, no side effects, no React. Unit testable alone.
+
+PERFORMANCE:
+- React.memo() for all list-rendered components.
+- useCallback for all event handlers passed as props.
+- useMemo for all derived/computed values.
+- FlatList or FlashList for lists. NEVER ScrollView + .map().
+- NO anonymous functions in JSX render.
+
+TYPESCRIPT:
+- strict: true. NEVER use `any`.
+- Interface for object props (DeviceCardProps). Type for unions/aliases.
+- `import type { X }` for type-only imports.
+
+STYLING:
+- ALWAYS StyleSheet.create(). NEVER inline styles.
+- Use Colors and Theme tokens from @/src/constants. No hardcoded values.
+- Responsive: use SCREEN_WIDTH scaling, not hardcoded pixels.
+
+NAMING:
+- Components: PascalCase (DeviceCard.tsx)
+- Hooks: camelCase with use prefix (useAuth.ts)
+- Services: PascalCase + Service (WakeOnLanService.ts)
+- Stores: camelCase + Store (authStore.ts)
+- Props: PascalCase + Props (DeviceCardProps)
+- Constants: UPPER_SNAKE_CASE (BLE_SCAN_TIMEOUT_MS)
+- Callbacks: on + Verb (onPress, onDeviceSelect)
+- Booleans: is/has/should prefix (isLoading, hasError)
+
+IMPORTS:
+- Always use @/ path alias. Never relative paths across layers.
+- Import order: React → Third-party → Internal (@/) → Relative → Types.
+- Use barrel exports (index.ts) in every directory.
