@@ -20,9 +20,11 @@ import {
   Check,
   Trash2,
   Plus,
+  Power,
 } from 'lucide-react-native';
 
 import { useInventoryStore } from '@/src/store';
+import { ProductType } from '@/src/constants/enums';
 
 import { GlassCard } from '@/src/components/common/GlassCard';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
@@ -50,6 +52,7 @@ function GroupDetailComponent({ groupId, onOpenDrawer }: GroupDetailProps) {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
+  const [powerStates, setPowerStates] = useState<Record<string, boolean>>({});
 
   const { updateGroup, removeGroup, removeDeviceFromGroup } = useInventoryStore();
 
@@ -118,12 +121,25 @@ function GroupDetailComponent({ groupId, onOpenDrawer }: GroupDetailProps) {
 
   const renderDeviceCard = useCallback((device: InventoryDevice) => {
     const isExpanded = !!expandedDeviceIds[device.id];
+    
+    // For smart devices, power state can be toggled. Default to false if not seen, or based on original status.
+    const isOn = powerStates[device.id] ?? (device.status === 'active');
+    
+    const displayStatus = device.product_type === ProductType.SMART_DEVICE 
+      ? (isOn ? 'active' : 'off') 
+      : device.status;
+
     const statusDotStyle =
-      device.status === 'active'
+      displayStatus === 'active'
         ? styles.statusDotActive
-        : device.status === 'standby'
+        : displayStatus === 'standby'
           ? styles.statusDotStandby
           : styles.statusDotOff;
+
+    const handleTogglePower = (e: any) => {
+      e.stopPropagation();
+      setPowerStates(prev => ({ ...prev, [device.id]: !(prev[device.id] ?? (device.status === 'active')) }));
+    };
 
     return (
       <TouchableOpacity
@@ -138,20 +154,33 @@ function GroupDetailComponent({ groupId, onOpenDrawer }: GroupDetailProps) {
               <Text style={styles.entryMeta}>{device.category}</Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 8 }}>
-              <View style={styles.statusRow}>
-                <View style={[styles.statusDot, statusDotStyle]} />
-                <Text style={styles.statusText}>{t(`common.${device.status}`)}</Text>
-              </View>
-              {isExpanded ? (
-                <ChevronUp size={18} color={colors.textSecondary} />
-              ) : (
-                <ChevronDown size={18} color={colors.textSecondary} />
-              )}
-              {isEditing && (
-                <TouchableOpacity onPress={() => handleDeleteDevice(device.id)} style={styles.deleteItemBtn}>
-                  <Trash2 size={18} color={colors.error} />
+              {device.product_type === ProductType.SMART_DEVICE && (
+                <TouchableOpacity 
+                  onPress={handleTogglePower}
+                  style={[
+                    styles.powerBtn,
+                    { backgroundColor: isOn ? colors.statusActive + '20' : colors.glass }
+                  ]}
+                >
+                  <Power size={18} color={isOn ? colors.statusActive : colors.textTertiary} />
                 </TouchableOpacity>
               )}
+              <View style={styles.statusRow}>
+                <View style={[styles.statusDot, statusDotStyle]} />
+                <Text style={styles.statusText}>{t(`common.${displayStatus}`)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {isExpanded ? (
+                  <ChevronUp size={18} color={colors.textSecondary} />
+                ) : (
+                  <ChevronDown size={18} color={colors.textSecondary} />
+                )}
+                {isEditing && (
+                  <TouchableOpacity onPress={() => handleDeleteDevice(device.id)} style={styles.deleteItemBtn}>
+                    <Trash2 size={18} color={colors.error} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           </View>
           {renderWarrantyBadge(device)}
@@ -161,7 +190,7 @@ function GroupDetailComponent({ groupId, onOpenDrawer }: GroupDetailProps) {
         </View>
       </TouchableOpacity>
     );
-  }, [colors.textSecondary, colors.error, isEditing, expandedDeviceIds, handleToggleDeviceDetails, renderDeviceDetails, renderWarrantyBadge, styles, t]);
+  }, [colors.statusActive, colors.glass, colors.textTertiary, colors.textSecondary, colors.error, isEditing, expandedDeviceIds, powerStates, handleToggleDeviceDetails, renderDeviceDetails, renderWarrantyBadge, styles, t]);
 
   if (!group) {
     return (

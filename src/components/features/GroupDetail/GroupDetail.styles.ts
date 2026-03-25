@@ -161,6 +161,15 @@ export const createStyles = (colors: ThemeColors, theme: AppTheme) => StyleSheet
     backgroundColor: colors.error + '20',
     borderRadius: theme.radius.sm,
   },
+  powerBtn: {
+    padding: theme.spacing.xs,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
   addDeviceBtn: {
     padding: theme.spacing.md,
     borderRadius: theme.radius.md,

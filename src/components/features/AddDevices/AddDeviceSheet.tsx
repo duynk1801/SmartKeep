@@ -108,8 +108,14 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
 
   const handleSelectType = (type: DeviceType) => {
     setSelectedType(type);
-    setGroupName('My Device Group');
-    setName('My Device');
+    setGroupName(type === ProductType.SMART_DEVICE ? 'My Smart Devices' : 'My Hardware Devices');
+    
+    // Auto-compute sequential index for default prefix
+    const totalDevices = useInventoryStore.getState().entries.reduce((acc, entry) => {
+      return acc + (entry.type === 'group' ? entry.items.length : 1);
+    }, 0);
+    setName(`Device ${totalDevices + 1}`);
+    
     setStep('details');
   };
 
