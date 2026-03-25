@@ -1,3 +1,5 @@
+export * from "./device";
+
 export type {
   Database,
   Device,

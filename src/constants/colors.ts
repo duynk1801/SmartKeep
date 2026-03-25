@@ -68,27 +68,27 @@ export interface ThemeColors {
 
 // ─── Dark Theme ───────────────────────────────────────
 export const DarkColors: ThemeColors = {
-  background: '#0F1419',
+  background: '#121212',
   backgroundSecondary: '#1A1F2E',
-  backgroundGradientStart: '#0F1419',
+  backgroundGradientStart: '#121212',
   backgroundGradientMid: '#1A1F2E',
-  backgroundGradientEnd: '#0F1419',
+  backgroundGradientEnd: '#121212',
 
   glass: 'rgba(26, 31, 46, 0.80)',
   glassElevated: 'rgba(26, 31, 46, 0.90)',
   glassBorder: 'rgba(0, 217, 255, 0.20)',
-  glassHighlight: 'rgba(0, 217, 255, 0.30)',
+  glassHighlight: 'rgba(0, 209, 255, 0.30)',
 
-  primary: '#00D9FF',
+  primary: '#00D1FF',
   primaryDark: '#0099CC',
-  primaryGlow: 'rgba(0, 217, 255, 0.10)',
-  primaryGlowStrong: 'rgba(0, 217, 255, 0.25)',
+  primaryGlow: 'rgba(0, 209, 255, 0.10)',
+  primaryGlowStrong: 'rgba(0, 209, 255, 0.25)',
 
   text: '#FFFFFF',
   textSecondary: 'rgba(255, 255, 255, 0.60)',
   textTertiary: 'rgba(255, 255, 255, 0.40)',
-  textInverse: '#0F1419',
-  textAccent: '#00D9FF',
+  textInverse: '#121212',
+  textAccent: '#00D1FF',
 
   success: '#4CD964',
   successBackground: 'rgba(76, 217, 100, 0.15)',
@@ -98,10 +98,10 @@ export const DarkColors: ThemeColors = {
   errorBackground: 'rgba(255, 59, 48, 0.15)',
   info: '#5AC8FA',
 
-  active: '#00D9FF',
+  active: '#00D1FF',
   inactive: 'rgba(255, 255, 255, 0.30)',
   border: 'rgba(255, 255, 255, 0.10)',
-  borderFocused: '#00D9FF',
+  borderFocused: '#00D1FF',
 
   drawerBackground: 'rgba(15, 20, 25, 0.95)',
   drawerItem: 'rgba(26, 31, 46, 0.80)',

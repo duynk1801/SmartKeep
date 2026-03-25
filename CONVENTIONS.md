@@ -552,6 +552,31 @@ enum DeviceType {
 }
 ```
 
+### 9.5 — Never Use Raw Strings as Type Identifiers
+
+All categorical/discriminator values MUST use **string enums**, never raw string literals or union string types.
+
+```tsx
+// ✅ GOOD — Enum: single source of truth, refactorable, auto-completable
+enum ProductType {
+  HARDWARE = 'hardware',
+  SMART_DEVICE = 'smart_device',
+}
+
+interface Product {
+  product_type: ProductType;
+}
+
+if (product.product_type === ProductType.HARDWARE) { ... }
+
+// ❌ BAD — String literal union: scattered, typo-prone, not refactorable
+type ProductType = 'hardware' | 'smart_device';
+
+if (product.product_type === 'hardware') { ... }
+```
+
+**Why:** Enums provide a single source of truth. When you rename a value, TypeScript catches every usage. String literals scatter across files and silently break on typos.
+
 ---
 
 ## 10. Import & Export Rules

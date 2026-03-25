@@ -1,9 +1,8 @@
-export type InventoryStatus = 'active' | 'standby' | 'off';
-export type ConnectionType = 'bluetooth' | 'wifi';
+import { ConnectionType, InventoryEntryType, InventoryStatus, ProductType } from '@/src/constants/enums';
 
 export interface InventoryDevice {
   id: string;
-  type: 'device';
+  type: InventoryEntryType.DEVICE;
   name: string;
   category: string;
   status: InventoryStatus;
@@ -14,15 +13,17 @@ export interface InventoryDevice {
   lastChecked: string;
   hasWarrantyWarning: boolean;
   warrantyExpiry?: string;
+  product_type?: ProductType;
 }
 
 export interface InventoryGroup {
   id: string;
-  type: 'group';
+  type: InventoryEntryType.GROUP;
   name: string;
   summary: string;
   status: InventoryStatus;
   items: InventoryDevice[];
+  product_type?: ProductType;
 }
 
 export type InventoryEntry = InventoryDevice | InventoryGroup;

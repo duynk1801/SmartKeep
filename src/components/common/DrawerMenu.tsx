@@ -7,24 +7,26 @@ import { GlassCard } from '@/src/components/common/GlassCard';
 import { SCREEN_WIDTH } from '@/src/constants/theme';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { ScreenName, ProductType, InventoryEntryType } from '@/src/constants/enums';
+
 import { useSettingsStore } from '@/src/store/settingsStore';
-
+import { useInventoryStore } from '@/src/store/inventoryStore';
+import type { InventoryGroup } from '@/src/components/features/GroupDetail';
 import type { PrimaryMenuScreen } from '@/src/store/settingsStore';
-
-type ScreenName = 'home' | 'remote' | 'computer' | 'add-devices' | 'settings';
 
 interface DrawerMenuProps {
   visible: boolean;
-  currentScreen: ScreenName;
-  onNavigate: (screen: ScreenName) => void;
+  currentScreen: string;
+  onNavigate: (screen: string) => void;
   onLogout: () => void;
   onClose: () => void;
 }
 
 interface MenuItem {
-  key: ScreenName;
+  key: string;
   label: string;
   Icon: typeof Home;
+  badgeCount?: number;
 }
 
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.78;
@@ -38,7 +40,7 @@ interface PrimaryDrawerItemProps {
   textSecondary: string;
   textTertiary: string;
   textColor: string;
-  onPress: (screen: ScreenName) => void;
+  onPress: (screen: string) => void;
   onDrag: () => void;
 }
 
@@ -67,6 +69,11 @@ const PrimaryDrawerItem = React.memo(function PrimaryDrawerItem({
             <item.Icon size={20} color={isSelected ? primaryColor : textSecondary} />
             <Text style={[styles.menuItemText, isSelected && { color: textColor }]}>{item.label}</Text>
           </View>
+          {item.badgeCount ? (
+            <View style={[styles.badgeContainer, { backgroundColor: isSelected ? primaryColor : styles.badgeContainer.backgroundColor }]}>
+              <Text style={styles.badgeText}>{item.badgeCount}</Text>
+            </View>
+          ) : null}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -92,21 +99,37 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
   const styles = useMemo(() => createStyles(colors, theme), [colors, theme]);
   const slideAnim = React.useRef(new Animated.Value(DRAWER_WIDTH)).current;
 
-  const primaryLookup = useMemo<Record<PrimaryMenuScreen, MenuItem>>(
-    () => ({
-      home: { key: 'home', label: t('drawer.home'), Icon: Home },
-      remote: { key: 'remote', label: t('drawer.remote'), Icon: Power },
-      computer: { key: 'computer', label: t('drawer.computer'), Icon: Monitor },
-    }),
-    [t],
-  );
+  // Reactively fetch groups to render as primary menu items
+  const entries = useInventoryStore(s => s.entries);
+  const groups = useMemo(() => entries.filter((e): e is InventoryGroup => e.type === InventoryEntryType.GROUP), [entries]);
 
-  console.log('primaryMenuOrder', primaryMenuOrder);
+  const orderedPrimaryItems = useMemo(() => {
+    const lookup: Record<string, MenuItem> = {
+      [ScreenName.HOME]: { key: ScreenName.HOME, label: t('drawer.home'), Icon: Home },
+    };
 
-  const orderedPrimaryItems = useMemo(
-    () => primaryMenuOrder.map((key) => primaryLookup[key]).filter(Boolean),
-    [primaryLookup, primaryMenuOrder],
-  );
+    // Add all groups to lookup with their item count as badge
+    groups.forEach((g) => {
+      lookup[g.id] = {
+        key: g.id,
+        label: g.name,
+        Icon: g.product_type === ProductType.SMART_DEVICE ? Power : Monitor,
+        badgeCount: g.items.length > 0 ? g.items.length : undefined,
+      };
+    });
+
+    // Determine order: primaryMenuOrder matches -> append remaining groups not in order
+    const ordered: MenuItem[] = primaryMenuOrder.map((key) => lookup[key]).filter(Boolean);
+    const orderedKeys = new Set(ordered.map((item) => item.key));
+
+    groups.forEach((g) => {
+      if (!orderedKeys.has(g.id)) {
+        ordered.push(lookup[g.id]);
+      }
+    });
+
+    return ordered;
+  }, [t, groups, primaryMenuOrder]);
 
   const [primaryItems, setPrimaryItems] = useState<MenuItem[]>(orderedPrimaryItems);
   const itemsRef = useRef(primaryItems);
@@ -122,8 +145,8 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
 
   const utilityItems: MenuItem[] = useMemo(
     () => [
-      { key: 'add-devices', label: t('drawer.addDevices'), Icon: PlusSquare },
-      { key: 'settings', label: t('drawer.settings'), Icon: Settings },
+      { key: ScreenName.ADD_DEVICES, label: t('drawer.addDevices'), Icon: PlusSquare },
+      { key: ScreenName.SETTINGS, label: t('drawer.settings'), Icon: Settings },
     ],
     [t],
   );
@@ -145,7 +168,7 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
   }, [primaryMenuOrder, setPrimaryMenuOrder]);
 
   const handleNavigate = useCallback(
-    (screen: ScreenName) => {
+    (screen: string) => {
       persistOrder();
       onNavigate(screen);
     },
@@ -243,7 +266,7 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
             containerStyle={styles.dragList}
             contentContainerStyle={styles.dragContent}
             ItemSeparatorComponent={SeparatorComponent}
-            dragItemOverflow={false}
+            dragItemOverflow={false}  
             showsVerticalScrollIndicator={false}
             scrollEnabled={false}
             extraData={currentScreen}
@@ -375,5 +398,20 @@ const createStyles = (
     logoutText: {
       ...theme.typography.body,
       color: colors.logout,
+    },
+    badgeContainer: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 12,
+      backgroundColor: colors.border,
+      marginLeft: 'auto',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: theme.spacing.sm,
+    },
+    badgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.text,
     },
   });

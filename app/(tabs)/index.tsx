@@ -3,14 +3,13 @@ import { View, StyleSheet } from 'react-native';
 
 import { LoginScreen } from '@/src/components/features/LoginScreen';
 import { HomeControl } from '@/src/components/features/HomeControl';
-import { RemoteControl } from '@/src/components/features/RemoteControl';
-import { MyComputer } from '@/src/components/features/MyComputer';
-import { AddDevices } from '@/src/components/features/AddDevices';
+import { GroupDetail } from '@/src/components/features/GroupDetail';
+import { AddDeviceSheet } from '@/src/components/features/AddDevices';
 import { SettingsScreen } from '@/src/components/features/SettingsScreen';
 import { DrawerMenu } from '@/src/components/common/DrawerMenu';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
+import { ScreenName } from '@/src/constants/enums';
 
-type ScreenName = 'home' | 'remote' | 'computer' | 'add-devices' | 'settings';
 type AppState = 'login' | 'authenticated';
 
 /**
@@ -25,19 +24,20 @@ export default function HomeScreen() {
   const colors = useThemeColors();
   const styles = React.useMemo(() => createStyles(colors.background), [colors.background]);
   const [appState, setAppState] = useState<AppState>('login');
-  const [currentScreen, setCurrentScreen] = useState<ScreenName>('home');
+  const [currentScreen, setCurrentScreen] = useState<string>(ScreenName.HOME);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [addDeviceSheetVisible, setAddDeviceSheetVisible] = useState(false);
 
   // ─── Auth Handlers ──────────────────
   const handleLogin = useCallback(() => {
     setAppState('authenticated');
-    setCurrentScreen('home');
+    setCurrentScreen(ScreenName.HOME);
   }, []);
 
   const handleGoogleLogin = useCallback(() => {
     // TODO: Implement Google OAuth via Supabase
     setAppState('authenticated');
-    setCurrentScreen('home');
+    setCurrentScreen(ScreenName.HOME);
   }, []);
 
   const handleSignUp = useCallback(() => {
@@ -59,9 +59,13 @@ export default function HomeScreen() {
     setDrawerVisible(false);
   }, []);
 
-  const handleNavigate = useCallback((screen: ScreenName) => {
-    setCurrentScreen(screen);
+  const handleNavigate = useCallback((screen: string) => {
     setDrawerVisible(false);
+    if (screen === ScreenName.ADD_DEVICES) {
+      setAddDeviceSheetVisible(true);
+      return;
+    }
+    setCurrentScreen(screen);
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -84,23 +88,13 @@ export default function HomeScreen() {
   // ─── Authenticated State ────────────
   const renderScreen = () => {
     switch (currentScreen) {
-      case 'home':
+      case ScreenName.HOME:
         return <HomeControl onOpenDrawer={handleOpenDrawer} />;
-      case 'remote':
-        return <RemoteControl onOpenDrawer={handleOpenDrawer} />;
-      case 'computer':
-        return <MyComputer onOpenDrawer={handleOpenDrawer} />;
-      case 'add-devices':
-        return (
-          <AddDevices
-            onOpenDrawer={handleOpenDrawer}
-            onReviewInventory={() => setCurrentScreen('computer')}
-          />
-        );
-      case 'settings':
+      case ScreenName.SETTINGS:
         return <SettingsScreen onOpenDrawer={handleOpenDrawer} />;
       default:
-        return <HomeControl onOpenDrawer={handleOpenDrawer} />;
+        // By default, if it's not a main screen, assume it's a dynamic group ID
+        return <GroupDetail groupId={currentScreen} onOpenDrawer={handleOpenDrawer} />;
     }
   };
 
@@ -113,6 +107,11 @@ export default function HomeScreen() {
         onNavigate={handleNavigate}
         onLogout={handleLogout}
         onClose={handleCloseDrawer}
+      />
+      <AddDeviceSheet
+        visible={addDeviceSheetVisible}
+        onClose={() => setAddDeviceSheetVisible(false)}
+        onSuccess={(groupId: string) => setCurrentScreen(groupId)}
       />
     </View>
   );

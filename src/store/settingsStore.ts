@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 
+import { ScreenName } from '@/src/constants/enums';
+
 export type ThemeMode = 'dark' | 'light';
 export type Language = 'en' | 'vi';
-export type PrimaryMenuScreen = 'home' | 'remote' | 'computer';
+export type PrimaryMenuScreen = string;
 
 interface SettingsState {
   themeMode: ThemeMode;
@@ -23,7 +25,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   // --- State ---
   themeMode: 'dark',
   language: 'en',
-  primaryMenuOrder: ['home', 'remote', 'computer'],
+  primaryMenuOrder: [ScreenName.HOME, 'group-1', 'group-2'],
 
   // --- Actions ---
   setThemeMode: (mode) =>

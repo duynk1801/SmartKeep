@@ -13,4 +13,9 @@
 6. **No inline styles** — Always `StyleSheet.create()`. Use `Colors` and `Theme` tokens.
 7. **Naming** — PascalCase components, camelCase hooks (useXxx), PascalCase services (XxxService).
 
+8. **Communication Protocol** — Before implementing ANY request:
+   - **Ask First**: Always ask clarifying questions to fully understand the scope, expected behavior, and edge cases before writing any code. Do NOT assume.
+   - **Explain During**: When implementing, describe in detail WHAT you are doing and WHY at each step. Each code change must be preceded by a clear explanation of the intent and impact.
+   - **Confirm Ambiguity**: If a request is ambiguous or has multiple valid approaches, list the options and let the user choose before proceeding.
+
 **For complete rules, read: `CONVENTIONS.md`**

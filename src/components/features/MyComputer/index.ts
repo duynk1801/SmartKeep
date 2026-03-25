@@ -1,1 +1,0 @@
-export { MyComputer } from './MyComputer';
