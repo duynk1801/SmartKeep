@@ -7,8 +7,10 @@ import {
   Switch,
   Alert,
   Platform,
+  useColorScheme,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Wifi, Bluetooth, Cpu, Barcode, X, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
 
 import BottomSheet, { 
@@ -32,14 +34,17 @@ interface AddDeviceSheetProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: (groupId: string) => void;
+  targetGroupId?: string;
+  editingDevice?: InventoryDevice | null;
 }
 
 type SelectionStep = 'selection' | 'details';
 type DeviceType = ProductType | null;
 
 
-export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose, onSuccess }) => {
+export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose, onSuccess, targetGroupId, editingDevice }) => {
   const { colors, theme } = useAppTheme();
+  const colorScheme = useColorScheme();
   
   // Ref
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -65,6 +70,7 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [isMonthsModalOpen, setMonthsModalOpen] = useState(false);
   const [isScannerOpen, setScannerOpen] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Bottom Sheet Configuration
@@ -84,21 +90,33 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
 
   useEffect(() => {
     if (visible) {
-      setStep('selection');
-      setSelectedType(null);
-      setGroupName('');
-      setName('');
-      setCategoryId('');
-      setIpAddress('192.168.1.1');
-      setAddWarranty(false);
-      setSerialNumber('');
-      setPurchaseDate(new Date().toISOString().split('T')[0]);
-      setWarrantyMonths('12');
+      if (editingDevice) {
+        setStep('details');
+        setSelectedType(editingDevice.product_type || ProductType.SMART_DEVICE);
+        setGroupName(editingDevice.location || '');
+        setName(editingDevice.name || '');
+        setCategoryId(['AC', 'Fan', 'TV'].includes(editingDevice.category) ? editingDevice.category : '');
+        setSerialNumber(editingDevice.serial || '');
+        setAddWarranty(!!editingDevice.warrantyExpiry);
+        setPurchaseDate(editingDevice.warrantyExpiry || new Date().toISOString().split('T')[0]);
+        setWarrantyMonths('12');
+      } else {
+        setStep('selection');
+        setSelectedType(null);
+        setGroupName('');
+        setName('');
+        setCategoryId('');
+        setIpAddress('192.168.1.1');
+        setAddWarranty(false);
+        setSerialNumber('');
+        setPurchaseDate(new Date().toISOString().split('T')[0]);
+        setWarrantyMonths('12');
+      }
       bottomSheetRef.current?.expand();
     } else {
       bottomSheetRef.current?.close();
     }
-  }, [visible]);
+  }, [visible, editingDevice]);
 
   const handleSheetChanges = useCallback((index: number) => {
     if (index === -1) {
@@ -106,9 +124,19 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
     }
   }, [onClose]);
 
+  const targetGroup = useMemo(() => {
+    return targetGroupId 
+      ? useInventoryStore.getState().entries.find(e => e.id === targetGroupId && e.type === InventoryEntryType.GROUP) as InventoryGroup | undefined
+      : undefined;
+  }, [targetGroupId, visible]);
+
   const handleSelectType = (type: DeviceType) => {
     setSelectedType(type);
-    setGroupName(type === ProductType.SMART_DEVICE ? 'My Smart Devices' : 'My Hardware Devices');
+    if (targetGroup) {
+      setGroupName(targetGroup.name);
+    } else {
+      setGroupName(type === ProductType.SMART_DEVICE ? 'My Smart Devices' : 'My Hardware Devices');
+    }
     
     // Auto-compute sequential index for default prefix
     const totalDevices = useInventoryStore.getState().entries.reduce((acc, entry) => {
@@ -121,27 +149,43 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
 
 
   const handleSave = async () => {
-    if (!groupName.trim() || !name.trim()) {
-      Alert.alert('Validation Error', 'Please enter both Group Name and Main Item Name.');
+    if ((!editingDevice && !groupName.trim()) || !name.trim()) {
+      Alert.alert('Validation Error', 'Please enter required fields.');
       return;
     }
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
+      if (editingDevice && targetGroupId) {
+        const updatedItem: Partial<InventoryDevice> = {
+          name,
+          category: categoryId || (selectedType === ProductType.HARDWARE ? 'Hardware' : 'Smart Component'),
+          serial: serialNumber || editingDevice.serial,
+          warrantyExpiry: addWarranty && purchaseDate ? purchaseDate : undefined,
+          product_type: selectedType!,
+        };
+        useInventoryStore.getState().updateDeviceInGroup(targetGroupId, editingDevice.id, updatedItem);
+        onSuccess(targetGroupId);
+        onClose();
+        return;
+      }
+
       const timestamp = Date.now();
-      const parentId = `group-${timestamp}`;
+      const parentId = targetGroupId || `group-${timestamp}`;
       
       // 1. Create the Device Store Product
-      const groupProduct: Product = {
-        id: parentId,
-        name: groupName,
-        is_group: true,
-        product_type: selectedType!,
-        category: 'Group',
-      };
-      
-      useDeviceStore.getState().addDevice(groupProduct);
+      if (!targetGroupId) {
+        const groupProduct: Product = {
+          id: parentId,
+          name: groupName,
+          is_group: true,
+          product_type: selectedType!,
+          category: 'Group',
+        };
+        
+        useDeviceStore.getState().addDevice(groupProduct);
+      }
 
       // 2. Prepare inventory items for the UI
       const inventoryItems: InventoryDevice[] = [];
@@ -176,7 +220,7 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
       }
       useDeviceStore.getState().addDevice(firstProduct);
 
-      inventoryItems.push({
+      const newInventoryItem: InventoryDevice = {
         id: firstProduct.id,
         type: InventoryEntryType.DEVICE,
         name: firstProduct.name,
@@ -190,20 +234,29 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
         hasWarrantyWarning: false,
         warrantyExpiry: addWarranty && purchaseDate ? purchaseDate : undefined,
         product_type: selectedType!,
-      });
-
-
-      // 4. Save to Inventory Store so it appears in MyComputer/Remote
-      const rootGroup: InventoryGroup = {
-        id: parentId,
-        type: InventoryEntryType.GROUP,
-        name: groupName,
-        summary: `Custom setup with ${inventoryItems.length} components`,
-        status: InventoryStatus.ACTIVE,
-        items: inventoryItems,
-        product_type: selectedType!,
       };
-      useInventoryStore.getState().addGroup(rootGroup);
+
+      const inventoryStore = useInventoryStore.getState();
+
+      if (targetGroupId) {
+        if (targetGroup) {
+          inventoryStore.updateGroup(targetGroupId, {
+            items: [...targetGroup.items, newInventoryItem]
+          });
+        }
+      } else {
+        // 4. Save to Inventory Store so it appears in MyComputer/Remote
+        const rootGroup: InventoryGroup = {
+          id: parentId,
+          type: InventoryEntryType.GROUP,
+          name: groupName,
+          summary: `Custom setup with 1 components`,
+          status: InventoryStatus.ACTIVE,
+          items: [newInventoryItem],
+          product_type: selectedType!,
+        };
+        inventoryStore.addGroup(rootGroup);
+      }
 
       onSuccess(parentId);
       onClose();
@@ -251,7 +304,7 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
           keyboardDismissMode="interactive"
         >
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>Add Definition</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{editingDevice ? 'Update Device' : 'Add Definition'}</Text>
             <TouchableOpacity onPress={() => bottomSheetRef.current?.close()}>
               <X size={24} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -287,16 +340,18 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
             </View>
           ) : (
             <>
-              <View style={styles.field}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>Device Group Name *</Text>
-                <BottomSheetTextInput
-                  style={[styles.input, { color: colors.text, borderColor: colors.glassBorder, backgroundColor: colors.backgroundSecondary }]}
-                  value={groupName}
-                  onChangeText={setGroupName}
-                  placeholder="e.g. Living Room TV or My PC..."
-                  placeholderTextColor={colors.textTertiary}
-                />
-              </View>
+              {!targetGroupId && !editingDevice && (
+                <View style={styles.field}>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Device Group Name *</Text>
+                  <BottomSheetTextInput
+                    style={[styles.input, { color: colors.text, borderColor: colors.glassBorder, backgroundColor: colors.backgroundSecondary }]}
+                    value={groupName}
+                    onChangeText={setGroupName}
+                    placeholder="e.g. Living Room TV or My PC..."
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                </View>
+              )}
 
               <View style={styles.formContainer}>
                 <Text style={[styles.sectionTitle, { color: colors.primary }]}>Main Item Details</Text>
@@ -369,13 +424,34 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
                     </View>
                     <View style={styles.field}>
                       <Text style={[styles.label, { color: colors.textSecondary }]}>Purchase Date</Text>
-                      <BottomSheetTextInput
-                        style={[styles.input, { color: colors.text, borderColor: colors.glassBorder }]}
-                        value={purchaseDate}
-                        onChangeText={setPurchaseDate}
-                        placeholder="YYYY-MM-DD"
-                        placeholderTextColor={colors.textSecondary}
-                      />
+                      <TouchableOpacity 
+                        style={[styles.input, { borderColor: colors.glassBorder }]}
+                        onPress={() => setShowDatePicker(prev => !prev)}
+                      >
+                        <Text style={{ color: purchaseDate ? colors.text : colors.textSecondary }}>
+                          {purchaseDate || 'Select Date'}
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      {showDatePicker && (
+                        <View style={Platform.OS === 'ios' ? { marginTop: 8, alignItems: 'center' } : {}}>
+                          <DateTimePicker
+                            value={purchaseDate ? new Date(purchaseDate) : new Date()}
+                            mode="date"
+                            display="spinner"
+                            maximumDate={new Date()}
+                            themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
+                            onChange={(event, selectedDate) => {
+                              if (Platform.OS === 'android') {
+                                setShowDatePicker(false);
+                              }
+                              if (selectedDate && (event.type === 'set' || Platform.OS === 'ios')) {
+                                setPurchaseDate(selectedDate.toISOString().split('T')[0]);
+                              }
+                            }}
+                          />
+                        </View>
+                      )}
                     </View>
                     <View style={styles.field}>
                       <Text style={[styles.label, { color: colors.textSecondary }]}>Warranty</Text>
@@ -399,7 +475,7 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
                   onPress={handleSave}
                   disabled={isSubmitting}
                 >
-                  <Text style={styles.saveButtonText}>{isSubmitting ? 'Saving...' : 'Add Device'}</Text>
+                  <Text style={styles.saveButtonText}>{isSubmitting ? 'Saving...' : (editingDevice ? 'Save ' : 'Add Device')}</Text>
                 </TouchableOpacity>
               </View>
             </>

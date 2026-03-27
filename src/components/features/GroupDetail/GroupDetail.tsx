@@ -31,6 +31,7 @@ import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useGroupDetail } from './useGroupDetail';
 import { createStyles } from './GroupDetail.styles';
+import { AddDeviceSheet } from '@/src/components/features/AddDevices/AddDeviceSheet';
 
 import type { InventoryDevice } from './GroupDetail.types';
 
@@ -53,8 +54,14 @@ function GroupDetailComponent({ groupId, onOpenDrawer }: GroupDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [powerStates, setPowerStates] = useState<Record<string, boolean>>({});
+  const [isAddSheetVisible, setIsAddSheetVisible] = useState(false);
+  const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
 
   const { updateGroup, removeGroup, removeDeviceFromGroup } = useInventoryStore();
+
+  const editingDevice = useMemo(() => {
+    return group?.items.find(item => item.id === editingDeviceId) || null;
+  }, [group, editingDeviceId]);
 
   useEffect(() => {
     if (group?.name) {
@@ -176,9 +183,27 @@ function GroupDetailComponent({ groupId, onOpenDrawer }: GroupDetailProps) {
                   <ChevronDown size={18} color={colors.textSecondary} />
                 )}
                 {isEditing && (
-                  <TouchableOpacity onPress={() => handleDeleteDevice(device.id)} style={styles.deleteItemBtn}>
-                    <Trash2 size={18} color={colors.error} />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <TouchableOpacity 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setEditingDeviceId(device.id);
+                        setIsAddSheetVisible(true);
+                      }} 
+                      style={styles.deleteItemBtn}
+                    >
+                      <Edit2 size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDevice(device.id);
+                      }} 
+                      style={styles.deleteItemBtn}
+                    >
+                      <Trash2 size={18} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             </View>
@@ -268,7 +293,7 @@ function GroupDetailComponent({ groupId, onOpenDrawer }: GroupDetailProps) {
         </GlassCard>
 
         {isEditing && (
-          <TouchableOpacity style={styles.addDeviceBtn} onPress={() => Alert.alert('Coming Soon', 'Add device to this specific group.')}>
+          <TouchableOpacity style={styles.addDeviceBtn} onPress={() => setIsAddSheetVisible(true)}>
             <Plus size={24} color={colors.primary} />
             <Text style={styles.addDeviceText}>Add Another Device</Text>
           </TouchableOpacity>
@@ -281,6 +306,20 @@ function GroupDetailComponent({ groupId, onOpenDrawer }: GroupDetailProps) {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      <AddDeviceSheet
+        visible={isAddSheetVisible}
+        onClose={() => {
+          setIsAddSheetVisible(false);
+          setEditingDeviceId(null);
+        }}
+        onSuccess={() => {
+          setIsAddSheetVisible(false);
+          setEditingDeviceId(null);
+        }}
+        targetGroupId={groupId}
+        editingDevice={editingDevice}
+      />
     </View>
   );
 }

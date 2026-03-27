@@ -11,6 +11,7 @@ interface InventoryState {
   updateGroup: (groupId: string, data: Partial<InventoryGroup>) => void;
   removeGroup: (groupId: string) => void;
   removeDeviceFromGroup: (groupId: string, deviceId: string) => void;
+  updateDeviceInGroup: (groupId: string, deviceId: string, data: Partial<InventoryDevice>) => void;
 }
 
 export const useInventoryStore = create<InventoryState>((set) => ({
@@ -38,6 +39,18 @@ export const useInventoryStore = create<InventoryState>((set) => ({
           return {
             ...e,
             items: e.items.filter(item => item.id !== deviceId)
+          };
+        }
+        return e;
+      })
+    })),
+  updateDeviceInGroup: (groupId, deviceId, data) =>
+    set((state) => ({
+      entries: state.entries.map(e => {
+        if (e.id === groupId && e.type === 'group') {
+          return {
+            ...e,
+            items: e.items.map(item => item.id === deviceId ? { ...item, ...data } : item)
           };
         }
         return e;

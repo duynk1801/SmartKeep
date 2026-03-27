@@ -1,18 +1,18 @@
 import { GripVertical, Home, LogOut, Monitor, PlusSquare, Power, Settings, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 
-import { GlassCard } from '@/src/components/common/GlassCard';
+import { InventoryEntryType, ProductType, ScreenName } from '@/src/constants/enums';
 import { SCREEN_WIDTH } from '@/src/constants/theme';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
-import { ScreenName, ProductType, InventoryEntryType } from '@/src/constants/enums';
+import { BlurView } from 'expo-blur';
 
-import { useSettingsStore } from '@/src/store/settingsStore';
-import { useInventoryStore } from '@/src/store/inventoryStore';
 import type { InventoryGroup } from '@/src/components/features/GroupDetail';
+import { useInventoryStore } from '@/src/store/inventoryStore';
 import type { PrimaryMenuScreen } from '@/src/store/settingsStore';
+import { useSettingsStore } from '@/src/store/settingsStore';
 
 interface DrawerMenuProps {
   visible: boolean;
@@ -58,7 +58,7 @@ const PrimaryDrawerItem = React.memo(function PrimaryDrawerItem({
 }: PrimaryDrawerItemProps) {
   return (
     <ScaleDecorator>
-      <GlassCard style={[styles.menuItem, isSelected && styles.menuItemActive, isActive && styles.draggingItem]}>
+      <View style={[styles.menuItem, isSelected && styles.menuItemActive, isActive && styles.draggingItem]}>
         <TouchableOpacity
           onPress={() => onPress(item.key)}
           disabled={isActive}
@@ -66,14 +66,23 @@ const PrimaryDrawerItem = React.memo(function PrimaryDrawerItem({
           style={styles.menuItemPressArea}
         >
           <View style={styles.menuItemLeft}>
-            <item.Icon size={20} color={isSelected ? primaryColor : textSecondary} />
-            <Text style={[styles.menuItemText, isSelected && { color: textColor }]}>{item.label}</Text>
-          </View>
-          {item.badgeCount ? (
-            <View style={[styles.badgeContainer, { backgroundColor: isSelected ? primaryColor : styles.badgeContainer.backgroundColor }]}>
-              <Text style={styles.badgeText}>{item.badgeCount}</Text>
+            <item.Icon size={18} strokeWidth={1.5} color={isSelected ? primaryColor : textSecondary} />
+            <View style={styles.menuItemTextWrapper}>
+              {item.badgeCount ? (
+                <View style={[styles.badgeContainer, isSelected && styles.badgeContainerActive]}>
+                  <Text style={[styles.badgeText, isSelected && styles.badgeTextActive]}>
+                    {item.badgeCount > 99 ? '99+' : item.badgeCount}
+                  </Text>
+                </View>
+              ) : null}
+              <Text
+                style={[styles.menuItemText, isSelected && { color: textColor }]}
+                numberOfLines={2}
+              >
+                {item.label}
+              </Text>
             </View>
-          ) : null}
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -84,9 +93,9 @@ const PrimaryDrawerItem = React.memo(function PrimaryDrawerItem({
           activeOpacity={0.6}
           style={styles.dragHandle}
         >
-          <GripVertical size={18} color={textTertiary} />
+          <GripVertical size={16} strokeWidth={1.5} color={textTertiary} />
         </TouchableOpacity>
-      </GlassCard>
+      </View>
     </ScaleDecorator>
   );
 });
@@ -98,10 +107,14 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
   const setPrimaryMenuOrder = useSettingsStore((s) => s.setPrimaryMenuOrder);
   const styles = useMemo(() => createStyles(colors, theme), [colors, theme]);
   const slideAnim = React.useRef(new Animated.Value(DRAWER_WIDTH)).current;
+  const colorScheme = useColorScheme();
 
   // Reactively fetch groups to render as primary menu items
-  const entries = useInventoryStore(s => s.entries);
-  const groups = useMemo(() => entries.filter((e): e is InventoryGroup => e.type === InventoryEntryType.GROUP), [entries]);
+  const entries = useInventoryStore((s) => s.entries);
+  const groups = useMemo(
+    () => entries.filter((e): e is InventoryGroup => e.type === InventoryEntryType.GROUP),
+    [entries],
+  );
 
   const orderedPrimaryItems = useMemo(() => {
     const lookup: Record<string, MenuItem> = {
@@ -214,11 +227,16 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
       const isSelected = currentScreen === item.key;
 
       return (
-        <TouchableOpacity key={item.key} onPress={() => handleNavigate(item.key)} activeOpacity={0.7}>
-          <GlassCard style={[styles.menuItem, isSelected && styles.menuItemActive]}>
-            <item.Icon size={20} color={isSelected ? colors.primary : colors.textSecondary} />
+        <TouchableOpacity
+          key={item.key}
+          style={[styles.menuItem, isSelected && styles.menuItemActive]}
+          onPress={() => handleNavigate(item.key)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.menuItemLeft}>
+            <item.Icon size={18} strokeWidth={1.5} color={isSelected ? colors.primary : colors.textSecondary} />
             <Text style={[styles.menuItemText, isSelected && styles.menuItemTextActive]}>{item.label}</Text>
-          </GlassCard>
+          </View>
         </TouchableOpacity>
       );
     },
@@ -232,6 +250,8 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleClose} />
 
       <Animated.View style={[styles.drawer, { transform: [{ translateX: slideAnim }] }]}>
+        <BlurView intensity={15} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.drawerBackground }]} />
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{t('common.menu')}</Text>
           <TouchableOpacity onPress={handleClose} activeOpacity={0.7}>
@@ -266,7 +286,7 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
             containerStyle={styles.dragList}
             contentContainerStyle={styles.dragContent}
             ItemSeparatorComponent={SeparatorComponent}
-            dragItemOverflow={false}  
+            dragItemOverflow={false}
             showsVerticalScrollIndicator={false}
             scrollEnabled={false}
             extraData={currentScreen}
@@ -277,8 +297,8 @@ function DrawerMenuComponent({ visible, currentScreen, onNavigate, onLogout, onC
           {utilityItems.map(renderUtilityItem)}
 
           <TouchableOpacity onPress={handleLogout} activeOpacity={0.7} style={styles.logoutButton}>
-            <LogOut size={20} color={colors.logout} />
-            <Text style={styles.logoutText}>{t('common.logOut')}</Text>
+            <LogOut size={18} strokeWidth={1.5} color={colors.error} />
+            <Text style={[styles.logoutText, { color: colors.error }]}>{t('common.logOut')}</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -303,19 +323,23 @@ const createStyles = (
       top: 0,
       bottom: 0,
       width: DRAWER_WIDTH,
-      backgroundColor: colors.drawerBackground,
-      paddingHorizontal: theme.spacing.lg,
+      paddingHorizontal: 0,
       paddingTop: theme.spacing.xxl + theme.spacing.md,
       paddingBottom: theme.spacing.xl,
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: colors.border,
+      overflow: 'hidden',
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: theme.spacing.lg,
+      paddingHorizontal: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
     },
     headerTitle: {
       ...theme.typography.h2,
+      paddingHorizontal: 4,
     },
     topSection: {
       flex: 1,
@@ -324,7 +348,8 @@ const createStyles = (
     sectionHint: {
       ...theme.typography.caption,
       color: colors.textTertiary,
-      marginBottom: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg + 4,
+      marginBottom: theme.spacing.md,
     },
     dragList: {
       flex: 1,
@@ -333,22 +358,32 @@ const createStyles = (
       paddingBottom: theme.spacing.md,
     },
     itemSeparator: {
-      height: theme.spacing.sm,
+      height: 2,
     },
     menuItem: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: theme.spacing.md,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 12,
     },
     menuItemPressArea: {
       flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
     },
     menuItemLeft: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing.md,
+      gap: 10,
       flex: 1,
+    },
+    menuItemTextWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 1,
     },
     dragHandle: {
       marginLeft: theme.spacing.sm,
@@ -358,12 +393,14 @@ const createStyles = (
       justifyContent: 'center',
     },
     menuItemActive: {
-      borderColor: colors.primary,
       backgroundColor: colors.primaryGlow,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primary,
+      borderRadius: 0,
+      paddingLeft: 17, // offset left border width
     },
     draggingItem: {
-      borderColor: colors.primary,
-      backgroundColor: colors.surfaceElevated,
+      backgroundColor: colors.drawerItem,
       shadowColor: colors.black,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.16,
@@ -371,47 +408,52 @@ const createStyles = (
       elevation: 6,
     },
     menuItemText: {
-      ...theme.typography.body,
+      fontSize: 14,
+      fontWeight: '400',
+      letterSpacing: 0.5,
       color: colors.textSecondary,
+      flexShrink: 1,
     },
     menuItemTextActive: {
-      color: colors.text,
+      color: colors.primary,
     },
     bottomSection: {
       marginTop: theme.spacing.md,
       paddingTop: theme.spacing.md,
-      borderTopWidth: 1,
+      borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.border,
-      gap: theme.spacing.sm,
     },
     logoutButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: theme.spacing.md,
-      paddingVertical: theme.spacing.md,
-      paddingHorizontal: theme.spacing.md,
-      backgroundColor: colors.logoutBackground,
-      borderRadius: theme.radius.xl,
-      borderWidth: 1,
-      borderColor: colors.logout,
+      gap: theme.spacing.sm,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      marginTop: 8,
     },
     logoutText: {
-      ...theme.typography.body,
-      color: colors.logout,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.error,
     },
     badgeContainer: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 12,
-      backgroundColor: colors.border,
-      marginLeft: 'auto',
+      minWidth: 18,
+      height: 16,
+      paddingHorizontal: 4,
+      borderRadius: 8,
+      backgroundColor: colors.drawerItem,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: theme.spacing.sm,
+    },
+    badgeContainerActive: {
+      backgroundColor: colors.primaryGlowStrong,
     },
     badgeText: {
-      fontSize: 12,
+      fontSize: 10,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textSecondary,
+    },
+    badgeTextActive: {
+      color: colors.primary,
     },
   });

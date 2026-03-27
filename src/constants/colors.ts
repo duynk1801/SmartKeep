@@ -103,8 +103,8 @@ export const DarkColors: ThemeColors = {
   border: 'rgba(255, 255, 255, 0.10)',
   borderFocused: '#00D1FF',
 
-  drawerBackground: 'rgba(15, 20, 25, 0.95)',
-  drawerItem: 'rgba(26, 31, 46, 0.80)',
+  drawerBackground: 'rgba(18, 18, 18, 0.8)',
+  drawerItem: 'rgba(255, 255, 255, 0.05)',
   logout: '#FF453A',
   logoutBackground: 'rgba(255, 69, 58, 0.10)',
 
@@ -156,8 +156,8 @@ export const LightColors: ThemeColors = {
   border: 'rgba(26, 35, 50, 0.10)',
   borderFocused: '#0096B4',
 
-  drawerBackground: 'rgba(245, 247, 250, 0.97)',
-  drawerItem: 'rgba(255, 255, 255, 0.90)',
+  drawerBackground: 'rgba(255, 255, 255, 0.6)',
+  drawerItem: 'rgba(0, 0, 0, 0.05)',
   logout: '#FF3B30',
   logoutBackground: 'rgba(255, 59, 48, 0.08)',
 
