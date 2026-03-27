@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { TouchableOpacity, StyleSheet, type ViewStyle } from 'react-native';
 import { type LucideIcon } from 'lucide-react-native';
 
-import { GlassCard } from './GlassCard';
+import { GlassCard } from '../GlassCard';
 import { Colors } from '@/src/constants/colors';
 import { Theme, SCREEN_WIDTH } from '@/src/constants/theme';
 

@@ -1,85 +1,64 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Switch,
-  Alert,
-  Platform,
-  useColorScheme,
-} from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import React, { useCallback } from 'react';
+import { View, Text, TouchableOpacity, Switch, Platform, useColorScheme } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Wifi, Bluetooth, Cpu, Barcode, X, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
+import { Wifi, Bluetooth, Cpu, Barcode, X, ChevronDown } from 'lucide-react-native';
 
-import BottomSheet, { 
-  BottomSheetScrollView,
-  BottomSheetTextInput,
-  BottomSheetBackdrop
-} from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView, BottomSheetTextInput, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
-import { SCREEN_HEIGHT } from '@/src/constants/theme';
-import { ProductType, InventoryEntryType, InventoryStatus, ConnectionType } from '@/src/constants/enums';
+import { ProductType } from '@/src/constants/enums';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { BottomSheetSelector } from '@/src/components/common/BottomSheetSelector';
 import { CameraScanner } from '@/src/components/common/CameraScanner';
-import { useDeviceStore } from '@/src/store/deviceStore';
-import { useInventoryStore } from '@/src/store/inventoryStore';
 
-import type { Product } from '@/src/types';
-import type { InventoryDevice, InventoryGroup } from '@/src/components/features/GroupDetail';
+import { useAddDeviceSheet, type AddDeviceSheetProps } from './useAddDeviceSheet';
+import { styles } from './styles';
 
-interface AddDeviceSheetProps {
-  visible: boolean;
-  onClose: () => void;
-  onSuccess: (groupId: string) => void;
-  targetGroupId?: string;
-  editingDevice?: InventoryDevice | null;
-}
-
-type SelectionStep = 'selection' | 'details';
-type DeviceType = ProductType | null;
-
-
-export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose, onSuccess, targetGroupId, editingDevice }) => {
-  const { colors, theme } = useAppTheme();
+export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = (props) => {
+  const { visible, targetGroupId, editingDevice } = props;
+  const { colors } = useAppTheme();
   const colorScheme = useColorScheme();
   
-  // Ref
-  const bottomSheetRef = useRef<BottomSheet>(null);
-
-  // Modals & Navigation
-  const [step, setStep] = useState<SelectionStep>('selection');
-  
-  // Data State
-  const [groupName, setGroupName] = useState('');
-  const [selectedType, setSelectedType] = useState<DeviceType>(null);
-  
-  // Form State for First Item
-  const [name, setName] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [ipAddress, setIpAddress] = useState('192.168.1.1');
-  const [addWarranty, setAddWarranty] = useState(false);
-  const [serialNumber, setSerialNumber] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
-  const [warrantyMonths, setWarrantyMonths] = useState<string>('12');
-  
-
-  // UI States
-  const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [isMonthsModalOpen, setMonthsModalOpen] = useState(false);
-  const [isScannerOpen, setScannerOpen] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Bottom Sheet Configuration
-  const snapPoints = useMemo(() => ['50%', '90%'], []);
+  const {
+    bottomSheetRef,
+    step,
+    groupName,
+    setGroupName,
+    selectedType,
+    name,
+    setName,
+    categoryId,
+    setCategoryId,
+    ipAddress,
+    setIpAddress,
+    addWarranty,
+    setAddWarranty,
+    serialNumber,
+    setSerialNumber,
+    purchaseDate,
+    setPurchaseDate,
+    warrantyMonths,
+    setWarrantyMonths,
+    isCategoryModalOpen,
+    setCategoryModalOpen,
+    isMonthsModalOpen,
+    setMonthsModalOpen,
+    isScannerOpen,
+    setScannerOpen,
+    showDatePicker,
+    setShowDatePicker,
+    isSubmitting,
+    handleSelectType,
+    handleSave,
+    categoryOptions,
+    monthsOptions,
+    snapPoints,
+    handleSheetChanges,
+  } = useAddDeviceSheet(props);
 
   const renderBackdrop = useCallback(
-    (props: any) => (
+    (bpProps: any) => (
       <BottomSheetBackdrop
-        {...props}
+        {...bpProps}
         appearsOnIndex={0}
         disappearsOnIndex={-1}
         pressBehavior="close"
@@ -87,199 +66,6 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
     ),
     []
   );
-
-  useEffect(() => {
-    if (visible) {
-      if (editingDevice) {
-        setStep('details');
-        setSelectedType(editingDevice.product_type || ProductType.SMART_DEVICE);
-        setGroupName(editingDevice.location || '');
-        setName(editingDevice.name || '');
-        setCategoryId(['AC', 'Fan', 'TV'].includes(editingDevice.category) ? editingDevice.category : '');
-        setSerialNumber(editingDevice.serial || '');
-        setAddWarranty(!!editingDevice.warrantyExpiry);
-        setPurchaseDate(editingDevice.warrantyExpiry || new Date().toISOString().split('T')[0]);
-        setWarrantyMonths('12');
-      } else {
-        setStep('selection');
-        setSelectedType(null);
-        setGroupName('');
-        setName('');
-        setCategoryId('');
-        setIpAddress('192.168.1.1');
-        setAddWarranty(false);
-        setSerialNumber('');
-        setPurchaseDate(new Date().toISOString().split('T')[0]);
-        setWarrantyMonths('12');
-      }
-      bottomSheetRef.current?.expand();
-    } else {
-      bottomSheetRef.current?.close();
-    }
-  }, [visible, editingDevice]);
-
-  const handleSheetChanges = useCallback((index: number) => {
-    if (index === -1) {
-      onClose();
-    }
-  }, [onClose]);
-
-  const targetGroup = useMemo(() => {
-    return targetGroupId 
-      ? useInventoryStore.getState().entries.find(e => e.id === targetGroupId && e.type === InventoryEntryType.GROUP) as InventoryGroup | undefined
-      : undefined;
-  }, [targetGroupId, visible]);
-
-  const handleSelectType = (type: DeviceType) => {
-    setSelectedType(type);
-    if (targetGroup) {
-      setGroupName(targetGroup.name);
-    } else {
-      setGroupName(type === ProductType.SMART_DEVICE ? 'My Smart Devices' : 'My Hardware Devices');
-    }
-    
-    // Auto-compute sequential index for default prefix
-    const totalDevices = useInventoryStore.getState().entries.reduce((acc, entry) => {
-      return acc + (entry.type === 'group' ? entry.items.length : 1);
-    }, 0);
-    setName(`Device ${totalDevices + 1}`);
-    
-    setStep('details');
-  };
-
-
-  const handleSave = async () => {
-    if ((!editingDevice && !groupName.trim()) || !name.trim()) {
-      Alert.alert('Validation Error', 'Please enter required fields.');
-      return;
-    }
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-
-    try {
-      if (editingDevice && targetGroupId) {
-        const updatedItem: Partial<InventoryDevice> = {
-          name,
-          category: categoryId || (selectedType === ProductType.HARDWARE ? 'Hardware' : 'Smart Component'),
-          serial: serialNumber || editingDevice.serial,
-          warrantyExpiry: addWarranty && purchaseDate ? purchaseDate : undefined,
-          product_type: selectedType!,
-        };
-        useInventoryStore.getState().updateDeviceInGroup(targetGroupId, editingDevice.id, updatedItem);
-        onSuccess(targetGroupId);
-        onClose();
-        return;
-      }
-
-      const timestamp = Date.now();
-      const parentId = targetGroupId || `group-${timestamp}`;
-      
-      // 1. Create the Device Store Product
-      if (!targetGroupId) {
-        const groupProduct: Product = {
-          id: parentId,
-          name: groupName,
-          is_group: true,
-          product_type: selectedType!,
-          category: 'Group',
-        };
-        
-        useDeviceStore.getState().addDevice(groupProduct);
-      }
-
-      // 2. Prepare inventory items for the UI
-      const inventoryItems: InventoryDevice[] = [];
-
-      const firstProduct: Product = {
-        id: `item-${timestamp}-first`,
-        name,
-        parent_id: parentId,
-        is_group: false,
-        product_type: selectedType!,
-        ...(selectedType === ProductType.SMART_DEVICE ? { category: categoryId } : { category: 'Hardware' }),
-      };
-
-      if (selectedType === ProductType.SMART_DEVICE) {
-        firstProduct.iot_configs = {
-          ip_address: ipAddress,
-          add_warranty_info: addWarranty,
-        };
-        if (addWarranty) {
-          firstProduct.warranty_details = {
-            serial_number: serialNumber,
-            purchase_date: purchaseDate,
-            warranty_months: parseInt(warrantyMonths, 10),
-          };
-        }
-      } else {
-        firstProduct.warranty_details = {
-          serial_number: serialNumber,
-          purchase_date: purchaseDate,
-          warranty_months: parseInt(warrantyMonths, 10),
-        };
-      }
-      useDeviceStore.getState().addDevice(firstProduct);
-
-      const newInventoryItem: InventoryDevice = {
-        id: firstProduct.id,
-        type: InventoryEntryType.DEVICE,
-        name: firstProduct.name,
-        category: firstProduct.category || (selectedType === ProductType.HARDWARE ? 'Hardware' : 'Smart Component'),
-        status: InventoryStatus.ACTIVE,
-        serial: serialNumber || `SN-${Math.floor(Math.random() * 10000)}`,
-        location: groupName,
-        connection: selectedType === ProductType.SMART_DEVICE ? ConnectionType.WIFI : ConnectionType.BLUETOOTH,
-        health: '100%',
-        lastChecked: new Date().toISOString().split('T')[0],
-        hasWarrantyWarning: false,
-        warrantyExpiry: addWarranty && purchaseDate ? purchaseDate : undefined,
-        product_type: selectedType!,
-      };
-
-      const inventoryStore = useInventoryStore.getState();
-
-      if (targetGroupId) {
-        if (targetGroup) {
-          inventoryStore.updateGroup(targetGroupId, {
-            items: [...targetGroup.items, newInventoryItem]
-          });
-        }
-      } else {
-        // 4. Save to Inventory Store so it appears in MyComputer/Remote
-        const rootGroup: InventoryGroup = {
-          id: parentId,
-          type: InventoryEntryType.GROUP,
-          name: groupName,
-          summary: `Custom setup with 1 components`,
-          status: InventoryStatus.ACTIVE,
-          items: [newInventoryItem],
-          product_type: selectedType!,
-        };
-        inventoryStore.addGroup(rootGroup);
-      }
-
-      onSuccess(parentId);
-      onClose();
-    } catch (e) {
-      console.error(e);
-      Alert.alert('Error', 'Failed to save group and items.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const categoryOptions = useMemo(() => [
-    { label: 'Air Conditioner', value: 'AC' },
-    { label: 'Fan', value: 'Fan' },
-    { label: 'Television', value: 'TV' },
-  ], []);
-
-  const monthsOptions = useMemo(() => [
-    { label: '12 Months', value: '12' },
-    { label: '24 Months', value: '24' },
-    { label: '36 Months', value: '36' },
-  ], []);
-
 
   return (
     <>
@@ -466,8 +252,6 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
                 )}
 
               </View>
-              
-
 
               <View style={[styles.inlineFooter, { borderTopColor: colors.glassBorder }]}>
                 <TouchableOpacity 
@@ -509,138 +293,3 @@ export const AddDeviceSheet: React.FC<AddDeviceSheetProps> = ({ visible, onClose
     </>
   );
 };
-
-const styles = StyleSheet.create({
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  selectionContainer: {
-    gap: 16,
-  },
-  card: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-  },
-  formContainer: {
-    gap: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: 12,
-  },
-  field: {
-    gap: 6,
-  },
-  rowField: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  scanButton: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveButton: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  inlineFooter: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
-  },
-  addItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingLeft: 16,
-    paddingRight: 6,
-    paddingVertical: 6,
-    gap: 8,
-  },
-  addItemInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: 8,
-  },
-  addItemBtn: {
-    borderRadius: 8,
-    padding: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  additionalItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginBottom: 8,
-    gap: 8,
-  },
-  additionalItemInput: {
-    flex: 1,
-    fontSize: 16,
-  },
-});

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 
-import { GlassCard } from './GlassCard';
+import { GlassCard } from '../GlassCard';
 import { Colors } from '@/src/constants/colors';
 import { Theme } from '@/src/constants/theme';
 
